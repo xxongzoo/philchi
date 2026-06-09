@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>필치 - 서예 드로잉</title>
+  <title>서예 드로잉</title>
 
   <style>
     *{ margin:0; padding:0; box-sizing:border-box; cursor:none; }
@@ -14,11 +14,31 @@
       font-family:"Noto Serif KR", serif;
     }
 
+.cursor{
+  position:fixed;
+
+  width:80px;
+  height:80px;
+
+  transform:translate(-50%,-50%);
+
+  pointer-events:none;
+  z-index:999;
+
+  background:url("img/R13.svg") center center no-repeat;
+  background-size:contain;
+
+  border:none;
+  border-radius:0;
+
+  mix-blend-mode:multiply;
+}
+
     canvas{
       position:absolute;
       inset:0;
-      width:100vw;
-      height:100vh;
+      width:200vw;
+      height:200vh;
       display:block;
     }
 
@@ -117,7 +137,7 @@
       width:44px;
       height:44px;
       border-radius:50%;
-      border:2px solid rgba(0,0,0,0.5);
+      /* border:2px solid rgba(0,0,0,0.5); */
       transform:translate(-50%,-50%);
       pointer-events:none;
       z-index:999;
