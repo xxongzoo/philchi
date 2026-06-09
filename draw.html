@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>필치 - 서예 드로잉</title>
+
+  <style>
+    *{ margin:0; padding:0; box-sizing:border-box; cursor:none; }
+
+    body{
+      overflow:hidden;
+      background:#f3ebe0;
+      font-family:"Noto Serif KR", serif;
+    }
+
+    canvas{
+      position:absolute;
+      inset:0;
+      width:100vw;
+      height:100vh;
+      display:block;
+    }
+
+    #paperCanvas{
+      background:
+        radial-gradient(circle at center, rgba(0,0,0,0.025), transparent 70%),
+        repeating-linear-gradient(90deg, rgba(255,255,255,0.025) 0px, rgba(255,255,255,0.025) 2px, transparent 2px, transparent 5px),
+        repeating-linear-gradient(0deg, rgba(0,0,0,0.012) 0px, rgba(0,0,0,0.012) 1px, transparent 1px, transparent 6px),
+        #f3ebe0;
+    }
+
+    .center-text {
+      position: fixed;
+      left: 50%;
+      top: 10%;
+      transform: translate(-50%, -50%);
+      font-family: "Noto Serif KR", "Batang", "바탕", serif;
+      font-size: 15px;
+      color: #6b6464;
+      z-index: 10;
+      pointer-events: none;
+      opacity: 40%;
+    }
+
+    .paper-transition{
+      position:fixed;
+      left:0;
+      top:0;
+      width:100vw;
+      height:100vh;
+      z-index:15;
+      pointer-events:none;
+      background:
+        radial-gradient(circle at center, rgba(0,0,0,0.025), transparent 70%),
+        repeating-linear-gradient(90deg, rgba(255,255,255,0.03) 0px, rgba(255,255,255,0.03) 2px, transparent 2px, transparent 5px),
+        repeating-linear-gradient(0deg, rgba(0,0,0,0.012) 0px, rgba(0,0,0,0.012) 1px, transparent 1px, transparent 6px),
+        #f3ebe0;
+      transform:translateY(-105%);
+      box-shadow:0 18px 45px rgba(0,0,0,0.08);
+    }
+
+    .paper-transition.active{
+      animation:newPaper 2.4s cubic-bezier(.77,0,.18,1) forwards;
+    }
+
+    @keyframes newPaper{
+      0%{ transform:translateY(-105%); }
+      75%{ transform:translateY(0%); }
+      100%{ transform:translateY(105%); }
+    }
+
+    .home-tool{
+      position:fixed;
+      left:40px;
+      bottom:50px;
+      z-index:20;
+    }
+
+    .tool{
+      position:fixed;
+      left:50%;
+      bottom:50px;
+      transform:translateX(-50%);
+      z-index:20;
+      display:flex;
+      align-items:center;
+      gap:36px;
+    }
+
+    .icon-btn{
+      border:none;
+      background:none;
+      padding:0;
+      cursor:none;
+      transition:.25s;
+    }
+
+    .icon-btn img{
+      display:block;
+      width:auto;
+      height:50px;
+      pointer-events:none;
+    }
+
+    .icon-btn:hover{
+      transform:translateY(-3px);
+      opacity:.78;
+    }
+
+    .icon-btn:active{
+      transform:scale(.95);
+    }
+
+    .cursor{
+      position:fixed;
+      width:44px;
+      height:44px;
+      border-radius:50%;
+      border:2px solid rgba(0,0,0,0.5);
+      transform:translate(-50%,-50%);
+      pointer-events:none;
+      z-index:999;
+      mix-blend-mode:multiply;
+    }
+
+    .print-modal{
+      position:fixed;
+      inset:0;
+      z-index:100;
+      background:rgba(243,235,224,0.82);
+      backdrop-filter:blur(10px);
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      opacity:0;
+      pointer-events:none;
+      transition:.4s;
+    }
+
+    .print-modal.active{
+      opacity:1;
+      pointer-events:auto;
+    }
+
+    .print-frame{
+      width:min(420px, 72vw);
+      height:min(560px, 68vh);
+      background:#f8f1e8;
+      border:1px solid rgba(0,0,0,0.16);
+      box-shadow:0 20px 60px rgba(0,0,0,0.14);
+      padding:18px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+
+    .print-frame img{
+      width:100%;
+      height:100%;
+      object-fit:contain;
+      mix-blend-mode:multiply;
+    }
+
+    .print-text{
+      margin-top:26px;
+      font-family:"Noto Serif KR", "Batang", "바탕", serif;
+      font-size:15px;
+      color:rgba(0,0,0,.58);
+      letter-spacing:-.02em;
+    }
+
+    .dot::after{
+      content:"";
+      animation:dots 1.2s infinite;
+    }
+
+    @keyframes dots{
+      0%{ content:""; }
+      33%{ content:"."; }
+      66%{ content:".."; }
+      100%{ content:"..."; }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="center-text">나의 필치를 천천히 한 획씩 남겨보세요.</div>
+
+  <canvas id="paperCanvas"></canvas>
+  <canvas id="canvas"></canvas>
+
+  <div class="paper-transition"></div>
+
+  <div class="print-modal" id="printModal">
+    <div class="print-frame">
+      <img id="printPreview" src="" alt="">
+    </div>
+    <div class="print-text">
+      인쇄중입니다<span class="dot"></span>
+    </div>
+  </div>
+
+  <div class="home-tool">
+    <button id="homeBtn" class="icon-btn">
+      <img src="img/bt-home.svg" alt="홈으로">
+    </button>
+  </div>
+
+  <div class="tool">
+    <button id="clearBtn" class="icon-btn">
+      <img src="img/bt1.svg" alt="새 장 펼치기">
+    </button>
+
+    <button id="saveBtn" class="icon-btn">
+      <img src="img/bt2.svg" alt="필치 간직하기">
+    </button>
+  </div>
+
+  <div class="cursor"></div>
+
+  <script>
+    const paperCanvas = document.getElementById("paperCanvas");
+    const paperCtx = paperCanvas.getContext("2d");
+
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+
+    const blurCanvas = document.createElement("canvas");
+    const blurCtx = blurCanvas.getContext("2d");
+
+    const cursor = document.querySelector(".cursor");
+    const paperTransition = document.querySelector(".paper-transition");
+
+    const printModal = document.getElementById("printModal");
+    const printPreview = document.getElementById("printPreview");
+
+    let drawing = false;
+    let lastPoint = null;
+    let changingPaper = false;
+
+    const baseWidth = 42;
+
+    resize();
+    window.addEventListener("resize", resize);
+
+    function resize(){
+      const ratio = window.devicePixelRatio || 1;
+
+      paperCanvas.width = window.innerWidth * ratio;
+      paperCanvas.height = window.innerHeight * ratio;
+      canvas.width = window.innerWidth * ratio;
+      canvas.height = window.innerHeight * ratio;
+      blurCanvas.width = window.innerWidth * ratio;
+      blurCanvas.height = window.innerHeight * ratio;
+
+      paperCanvas.style.width = window.innerWidth + "px";
+      paperCanvas.style.height = window.innerHeight + "px";
+      canvas.style.width = window.innerWidth + "px";
+      canvas.style.height = window.innerHeight + "px";
+
+      paperCtx.setTransform(ratio,0,0,ratio,0,0);
+      ctx.setTransform(ratio,0,0,ratio,0,0);
+      blurCtx.setTransform(ratio,0,0,ratio,0,0);
+
+      drawPaperTexture();
+    }
+
+    function drawPaperTexture(){
+      paperCtx.clearRect(0,0,window.innerWidth,window.innerHeight);
+
+      for(let i=0;i<1000;i++){
+        const x = Math.random() * window.innerWidth;
+        const y = Math.random() * window.innerHeight;
+        const alpha = Math.random() * 0.025;
+
+        paperCtx.fillStyle = `rgba(0,0,0,${alpha})`;
+        paperCtx.fillRect(x, y, Math.random()*2, Math.random()*2);
+      }
+    }
+
+    function getPoint(e){
+      return{
+        x:e.clientX,
+        y:e.clientY,
+        t:performance.now(),
+        pressure: e.pressure && e.pressure > 0 ? e.pressure : 0.65
+      };
+    }
+
+    function distance(a,b){
+      const dx = a.x - b.x;
+      const dy = a.y - b.y;
+      return Math.sqrt(dx*dx + dy*dy);
+    }
+
+    function clamp(v,min,max){
+      return Math.max(min,Math.min(max,v));
+    }
+
+    function drawStroke(p1,p2){
+      if(changingPaper) return;
+
+      const dist = distance(p1,p2);
+      const dt = Math.max(p2.t - p1.t, 1);
+      const speed = dist / dt;
+      const pressure = p2.pressure;
+
+      const steps = Math.max(1, Math.ceil(dist / 4));
+
+      for(let i = 0; i < steps; i++){
+        const t1 = i / steps;
+        const t2 = (i + 1) / steps;
+
+        const a = {
+          x: p1.x + (p2.x - p1.x) * t1,
+          y: p1.y + (p2.y - p1.y) * t1
+        };
+
+        const b = {
+          x: p1.x + (p2.x - p1.x) * t2,
+          y: p1.y + (p2.y - p1.y) * t2
+        };
+
+        const width = clamp(baseWidth - speed * 34 + pressure * 8, 4, 44);
+        const mainAlpha = clamp(0.32 - speed * 0.22, 0.055, 0.32);
+        const blurAlpha = clamp(0.1 - speed * 0.07, 0.018, 0.1);
+        const innerAlpha = clamp(0.13 - speed * 0.08, 0.025, 0.13);
+
+        const midX = (a.x + b.x) / 2;
+        const midY = (a.y + b.y) / 2;
+
+        blurCtx.clearRect(0,0,window.innerWidth,window.innerHeight);
+
+        blurCtx.save();
+        blurCtx.filter = "blur(10px)";
+        blurCtx.lineCap = "round";
+        blurCtx.lineJoin = "round";
+        blurCtx.strokeStyle = `rgba(0,0,0,${blurAlpha})`;
+        blurCtx.lineWidth = width * 1.08;
+        blurCtx.beginPath();
+        blurCtx.moveTo(a.x, a.y);
+        blurCtx.quadraticCurveTo(a.x, a.y, midX, midY);
+        blurCtx.stroke();
+        blurCtx.restore();
+
+        ctx.drawImage(blurCanvas, 0, 0, window.innerWidth, window.innerHeight);
+
+        ctx.save();
+        ctx.filter = "blur(3px)";
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.strokeStyle = `rgba(0,0,0,${mainAlpha})`;
+        ctx.lineWidth = width;
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.quadraticCurveTo(a.x, a.y, midX, midY);
+        ctx.stroke();
+        ctx.restore();
+
+        ctx.save();
+        ctx.filter = "blur(1.5px)";
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.strokeStyle = `rgba(0,0,0,${innerAlpha})`;
+        ctx.lineWidth = width * 0.52;
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.quadraticCurveTo(a.x, a.y, midX, midY);
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
+    function startDrawing(e){
+      if(changingPaper) return;
+      drawing = true;
+      lastPoint = getPoint(e);
+    }
+
+    function moveDrawing(e){
+      const p = getPoint(e);
+
+      cursor.style.left = p.x + "px";
+      cursor.style.top = p.y + "px";
+
+      if(!drawing || !lastPoint) return;
+      if(distance(lastPoint,p) < 1.5) return;
+
+      drawStroke(lastPoint,p);
+      lastPoint = p;
+    }
+
+    function stopDrawing(){
+      drawing = false;
+      lastPoint = null;
+    }
+
+    function changePaper(){
+      if(changingPaper) return;
+
+      changingPaper = true;
+      drawing = false;
+      lastPoint = null;
+
+      paperTransition.classList.remove("active");
+      void paperTransition.offsetWidth;
+      paperTransition.classList.add("active");
+
+      setTimeout(()=>{
+        ctx.clearRect(0,0,window.innerWidth,window.innerHeight);
+        drawPaperTexture();
+      }, 1200);
+
+      setTimeout(()=>{
+        paperTransition.classList.remove("active");
+        changingPaper = false;
+      }, 8400);
+    }
+
+    function makeExportImage(){
+      const exportCanvas = document.createElement("canvas");
+      const exportCtx = exportCanvas.getContext("2d");
+
+      exportCanvas.width = canvas.width;
+      exportCanvas.height = canvas.height;
+
+      exportCtx.drawImage(paperCanvas,0,0);
+      exportCtx.drawImage(canvas,0,0);
+
+      return exportCanvas.toDataURL("image/png");
+    }
+
+    function downloadImage(dataURL){
+      const link = document.createElement("a");
+      link.download = "pilchi.png";
+      link.href = dataURL;
+      link.click();
+    }
+
+    function printFlow(){
+      if(changingPaper) return;
+
+      const imageData = makeExportImage();
+
+      printPreview.src = imageData;
+      printModal.classList.add("active");
+
+      setTimeout(()=>{
+        downloadImage(imageData);
+      }, 1800);
+
+      setTimeout(()=>{
+        printModal.classList.remove("active");
+        changePaper();
+      }, 3000);
+    }
+
+    canvas.addEventListener("pointerdown", startDrawing);
+    canvas.addEventListener("pointermove", moveDrawing);
+    canvas.addEventListener("pointerup", stopDrawing);
+    canvas.addEventListener("pointerleave", stopDrawing);
+
+    document.addEventListener("pointermove", (e)=>{
+      cursor.style.left = e.clientX + "px";
+      cursor.style.top = e.clientY + "px";
+    });
+
+    document.getElementById("homeBtn").addEventListener("click",()=>{
+      window.location.href = "index.html";
+    });
+
+    document.getElementById("clearBtn").addEventListener("click", changePaper);
+    document.getElementById("saveBtn").addEventListener("click", printFlow);
+  </script>
+
+</body>
+</html>
